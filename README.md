@@ -175,14 +175,20 @@ qr-entry-system/
    ```bash
    cp .env.example .env
    ```
-   Update `.env` with your PostgreSQL connection URL:
+   Update `.env` with your database connection URLs:
    ```env
+   # Connection URL (Pooled connection for Supabase or direct for local PostgreSQL)
    DATABASE_URL="postgresql://user:password@localhost:5432/qrentry?schema=public"
+
+   # Direct URL (Used for Prisma migrations & schema sync)
+   DIRECT_URL="postgresql://user:password@localhost:5432/qrentry?schema=public"
+
    PORT=5000
    QR_SIGNING_KEY_ID="FGL-2026-01"
    QR_SIGNING_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
    QR_SIGNING_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
    ```
+   > **Note for Supabase users**: Set `DATABASE_URL` to your pooled connection string (port `6543`) and `DIRECT_URL` to your direct database connection string (port `5432`). For local PostgreSQL, both variables can share the same connection string.
 
 3. Push Prisma schema to the database:
    ```bash
