@@ -1,0 +1,26 @@
+{
+  "name": "qr-entry-backend",
+  "version": "1.0.0",
+  "description": "QR Entry System Backend for Freshers Got Latent 2026",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node scripts/seed.js",
+    "test:flows": "node scripts/test-flows.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}

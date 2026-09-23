@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  AUDIENCE
+  GATE_STAFF
+  ADMIN
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum TicketStatus {
+  ACTIVE
+  REDEEMED
+  BLOCKED
+  REVOKED
+  EXPIRED
+}
+
+enum AttemptResult {
+  VALIDATED
+  ENTRY_APPROVED
+  ALREADY_REDEEMED
+  INVALID_SIGNATURE
+  UNKNOWN_TICKET
+  WRONG_EVENT
+  BLOCKED
+  REVOKED
+  EXPIRED
+  PAYMENT_NOT_VERIFIED
+  REGISTRATION_NOT_APPROVED
+  UNAUTHORIZED
+}
+
+enum AuditAction {
+  TICKET_CREATED
+  TICKET_SIGNED
+  PASS_VIEWED
+  QR_SCANNED
+  ENTRY_CONFIRMED
+  ENTRY_REJECTED
+  TICKET_BLOCKED
+  TICKET_UNBLOCKED
+  TICKET_REVOKED
+  ADMIN_OVERRIDE
+}
+
+model User {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  name            String
+  rollNumber      String?
+  role            Role           @default(AUDIENCE)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  attendees       Attendee[]
+  redeemedTickets Ticket[]       @relation("TicketRedeemedBy")
+  revokedTickets  Ticket[]       @relation("TicketRevokedBy")
+  entryAttempts   EntryAttempt[] @relation("StaffAttempts")
+  auditLogs       AuditLog[]     @relation("UserAuditLogs")
+}
+
+model Event {
+  id            String         @id
+  code          String         @unique
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  attendees     Attendee[]
+  tickets       Ticket[]
+  gates         Gate[]
+  entryAttempts EntryAttempt[]
+  auditLogs     AuditLog[]
+}
+
+model Attendee {
+  id                 String             @id @default(cuid())
+  eventId            String
+  userId             String
+  registrationStatus RegistrationStatus @default(PENDING)
+  paymentStatus      PaymentStatus      @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket             Ticket?
+
+  @@unique([eventId, userId])
+}
+
+model Gate {
+  id            String         @id
+  eventId       String
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets       Ticket[]
+  entryAttempts EntryAttempt[]
+  auditLogs     AuditLog[]
+}
+
+model Ticket {
+  id               String         @id @default(cuid())
+  eventId          String
+  attendeeId       String         @unique
+  ticketCode       String         @default(uuid())
+  nonce            String
+  status           TicketStatus   @default(ACTIVE)
+  issuedAt         DateTime       @default(now())
+  expiresAt        DateTime?
+  redeemedAt       DateTime?
+  redeemedBy       String?
+  redeemedGateId   String?
+  revokedAt        DateTime?
+  revokedBy        String?
+  revocationReason String?
+  signingKeyId     String         @default("FGL-2026-01")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee         Attendee       @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+  redeemer         User?          @relation("TicketRedeemedBy", fields: [redeemedBy], references: [id])
+  gate             Gate?          @relation(fields: [redeemedGateId], references: [id])
+  revoker          User?          @relation("TicketRevokedBy", fields: [revokedBy], references: [id])
+  entryAttempts    EntryAttempt[]
+
+  @@unique([eventId, attendeeId])
+  @@unique([eventId, ticketCode])
+  @@index([ticketCode])
+  @@index([eventId, status])
+  @@index([attendeeId])
+}
+
+model EntryAttempt {
+  id            String        @id @default(cuid())
+  eventId       String
+  ticketId      String?
+  gateId        String?
+  staffId       String?
+  attemptedAt   DateTime      @default(now())
+  result        AttemptResult
+  failureReason String?
+  deviceId      String?
+  metadata      Json?
+
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticket        Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  gate          Gate?         @relation(fields: [gateId], references: [id], onDelete: SetNull)
+  staff         User?         @relation("StaffAttempts", fields: [staffId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  eventId   String?
+  entityId  String?
+  action    AuditAction
+  actorId   String?
+  timestamp DateTime    @default(now())
+  gateId    String?
+  deviceId  String?
+  metadata  Json?
+
+  event     Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  gate      Gate?       @relation(fields: [gateId], references: [id], onDelete: SetNull)
+  actor     User?       @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+}
